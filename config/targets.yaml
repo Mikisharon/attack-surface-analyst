@@ -1,0 +1,27 @@
+# Authorized targets allowlist (FR-1).
+# The orchestrator refuses any domain that is not listed here, before any
+# request is made. Only add domains you own or that explicitly permit testing.
+#
+# mode:
+#   live       - real scans: passive CT lookup + one HTTPS request per host
+#   synthetic  - never contacted; only runs against the recorded training fixtures
+
+targets:
+  - domain: scanme.nmap.org
+    mode: live
+    description: Nmap's public test host, intentionally available for scanning practice.
+
+  - domain: vulnweb.com
+    mode: live
+    description: Acunetix's intentionally vulnerable test sites (testphp, testasp, ...).
+
+  # Miki's own domain. Uncomment and set it once decided (PRD open question).
+  # - domain: your-domain.com
+  #   mode: live
+  #   description: Miki's own domain.
+
+  - domain: demo-corp.example
+    mode: synthetic
+    description: >-
+      Training scenario. A fictional company on the reserved .example TLD;
+      every response comes from evals/golden/training_scenario.json.

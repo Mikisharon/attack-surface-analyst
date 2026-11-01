@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Attack Surface Analyst</title>
+  <meta name="description" content="Five cooperating agents turn an authorized domain into an evidence-backed external exposure report. This page replays recorded runs.">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <div class="wrap">
+      <h1>Attack Surface Analyst</h1>
+      <p class="tagline">Five agents turn one domain into a prioritized, evidence-backed exposure report.
+        Code fetches the facts; the LLM reasons over them and never invents them.</p>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section class="controls" aria-label="Run controls">
+      <label for="run-picker">Recorded scan</label>
+      <select id="run-picker"></select>
+      <button id="replay" type="button" class="primary">▶ Replay</button>
+      <label class="speed">Speed
+        <select id="speed">
+          <option value="0.5">0.5×</option>
+          <option value="1" selected>1×</option>
+          <option value="3">3×</option>
+        </select>
+      </label>
+      <button id="skip" type="button">Skip to report</button>
+    </section>
+
+    <div id="banners"></div>
+
+    <section aria-label="Pipeline">
+      <h2>Pipeline</h2>
+      <ol id="pipeline" class="pipeline"></ol>
+      <div id="step-detail" class="step-detail" hidden></div>
+    </section>
+
+    <section id="results" aria-label="Results" hidden>
+      <div class="stats" id="stats"></div>
+      <nav class="tabs" role="tablist">
+        <button role="tab" data-tab="report" aria-selected="true">Report</button>
+        <button role="tab" data-tab="findings" aria-selected="false">Findings</button>
+        <button role="tab" data-tab="hosts" aria-selected="false">Hosts</button>
+        <button role="tab" data-tab="evidence" aria-selected="false">Evidence</button>
+      </nav>
+      <div id="tab-report" class="tab"></div>
+      <div id="tab-findings" class="tab" hidden></div>
+      <div id="tab-hosts" class="tab" hidden></div>
+      <div id="tab-evidence" class="tab" hidden></div>
+    </section>
+
+    <p id="load-error" class="error" hidden></p>
+  </main>
+
+  <aside id="drawer" class="drawer" aria-hidden="true" aria-labelledby="drawer-title">
+    <div class="drawer-head">
+      <h3 id="drawer-title">Evidence</h3>
+      <button id="drawer-close" type="button" aria-label="Close">✕</button>
+    </div>
+    <div id="drawer-body"></div>
+  </aside>
+
+  <footer class="wrap foot">
+    <p><strong>Responsible use.</strong> Scans run only on allowlisted targets: the author's own domain and
+      sites that are intentionally public for security testing. Discovery is passive (certificate
+      transparency), and each discovered host receives at most one ordinary HTTPS request.
+      Page titles and headers from targets are shown as untrusted data.</p>
+    <p><a href="https://github.com/Mikisharon/attack-surface-analyst">Source, PRD and agent skills on GitHub</a></p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

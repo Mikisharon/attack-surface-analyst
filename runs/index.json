@@ -1,0 +1,26 @@
+{
+  "runs": [
+    {
+      "run_id": "demo-corp-example-2026-11-01",
+      "target": "demo-corp.example",
+      "date": "2026-11-01",
+      "file": "demo-corp-example-2026-11-01.json",
+      "label": "Training scenario (synthetic data)",
+      "synthetic": true,
+      "status": "ok",
+      "summary": {
+        "hosts": 10,
+        "live_hosts": 9,
+        "findings": 19,
+        "p1": 4,
+        "p2": 3,
+        "duration_s": 0.0,
+        "cost_usd": 0.0,
+        "llm_models": [
+          "offline-heuristic"
+        ],
+        "unknown_citations": 0
+      }
+    }
+  ]
+}
