@@ -4,6 +4,8 @@ A multi-agent demo that turns a domain name into a prioritized, evidence-backed 
 
 Five agents work in sequence: **Recon** finds subdomains, **Enrichment** profiles each host, **Threat Intel** matches software to known and actively exploited vulnerabilities, **Prioritization** decides what to fix first, and **Report** explains it to leadership and engineers. Code fetches the facts; the LLM reasons over them and never invents them.
 
+**[▶ Watch the live demo](https://mikisharon.github.io/attack-surface-analyst/)**: replays recorded runs in your browser, no install needed.
+
 > Status: P0 implemented (all five agents, run recorder, replay UI). P1 items (scheduled CI, eval harness, metrics panel) are next.
 
 ## Run the demo on your laptop
