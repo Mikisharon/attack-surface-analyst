@@ -6,7 +6,7 @@ Version 0.1 · Nov 1, 2026 · Miki Sharon
 
 ## Overview
 
-Attack Surface Analyst turns a single domain name into a prioritized, evidence-backed external exposure report, produced by five cooperating agents. It is a portfolio demo: it shows how an AI product manager decides where an LLM adds value, where it must not be trusted, and how the result is evaluated.
+Attack Surface Analyst turns a single domain name into a prioritized, evidence-backed external exposure report, produced by five cooperating agents. It is a working demonstration of how to decide where an LLM adds value, where it must not be trusted, and how the result is evaluated.
 
 **Problem.** Security teams cannot protect assets they do not know about. Forgotten subdomains, outdated internet-facing software and known-exploited vulnerabilities are a leading entry point for attackers. Commercial EASM platforms solve this at scale; this demo reproduces the core workflow in a transparent, explainable way.
 
@@ -16,20 +16,20 @@ Attack Surface Analyst turns a single domain name into a prioritized, evidence-b
 
 ## Users and use cases
 
-The primary user is a hiring manager evaluating Miki as an AI PM; the product is designed so a security practitioner would also find the output credible.
+The primary user is a technical external user who wants to see how a multi-agent AI system handles a real security workflow; the output is designed to be credible to security practitioners and clear to non-technical readers.
 
 | Persona | Context | What they need from the demo |
 | --- | --- | --- |
-| Hiring manager (AI PM role) | Clicks from the portfolio site, spends 3–5 minutes | See product thinking: problem framing, agent design, evals, guardrails |
-| Security leader at a hiring company | Knows EASM and CTI well | Findings that are correct, evidence-backed and prioritized the way a real team would |
-| Recruiter | Non-technical, spends under a minute | A clear story and a visibly working product |
-| Miki (operator) | Runs scans locally or via scheduled CI | Simple CLI, reproducible runs, easy to add new demo targets |
+| Technical external user | Opens the live demo from a link, spends 3–5 minutes | Understand the system: problem framing, agent design, LLM-vs-code decisions, evals and guardrails |
+| Security leader | Knows EASM and CTI well | Findings that are correct, evidence-backed and prioritized the way a real team would |
+| Non-technical user | No security or AI background, spends about a minute | A clear story and a visibly working product |
+| Admin / operator | Runs scans locally or via scheduled CI | Simple CLI, reproducible runs, easy to add new demo targets |
 
 Core use cases:
 
 1. A visitor picks a recorded scan and watches the agents work step by step, ending with the report.
 2. A visitor opens any finding and sees the evidence behind it: source, timestamp and which agent produced it.
-3. Miki runs a new scan on an approved target and publishes it to the site with one commit.
+3. The admin runs a new scan on an approved target and publishes it to the site with one commit.
 
 ## Goals and non-goals
 
@@ -51,7 +51,7 @@ The demo succeeds if a reviewer understands the agent design and trusts the find
 
 ## Functional requirements
 
-P0 is the first portfolio release (all five agents, recorder and replay UI); P1 makes it credible to a security reviewer; P2 is stretch.
+P0 is the first public release (all five agents, recorder and replay UI); P1 makes it credible to a security reviewer; P2 is stretch.
 
 | ID | Requirement | Owner | Priority |
 | --- | --- | --- | --- |
@@ -74,23 +74,23 @@ P0 is the first portfolio release (all five agents, recorder and replay UI); P1 
 
 ## Success metrics and evaluation plan
 
-Quality is measured per agent against a small golden set that Miki labels by hand; the targets below are starting proposals to confirm after the first runs.
+Quality is measured per agent against a small golden set labelled by hand by a security expert; the targets below are starting proposals to confirm after the first runs.
 
-**Golden set.** 3 authorized targets (Miki's own domain, scanme.nmap.org, a vulnweb.com test site), plus 10 synthetic host records with known correct answers (e.g. a fake host running a KEV-listed product version). Synthetic records make the LLM agents testable without depending on live internet data.
+**Golden set.** 3 authorized targets (the operator's own domain, scanme.nmap.org, a vulnweb.com test site), plus 10 synthetic host records with known correct answers (e.g. a fake host running a KEV-listed product version). Synthetic records make the LLM agents testable without depending on live internet data.
 
 | Agent | Metric | How it is measured | Proposed target |
 | --- | --- | --- | --- |
 | Recon | Subdomain recall | Found subdomains vs. a manually verified list per target | ≥ 90% |
-| Enrichment (LLM) | Role classification accuracy | LLM label vs. Miki's label on golden hosts | ≥ 80% |
+| Enrichment (LLM) | Role classification accuracy | LLM label vs. expert label on golden hosts | ≥ 80% |
 | Threat Intel | CVE match precision | Share of reported CVEs that truly apply to the detected version | ≥ 95% |
-| Prioritization | Agreement with expert ranking | Share of findings where LLM priority equals Miki's, or is one level off | ≥ 85% within one level |
+| Prioritization | Agreement with expert ranking | Share of findings where LLM priority equals the expert's, or is one level off | ≥ 85% within one level |
 | Report | Faithfulness | Claims in the report without a valid evidence ID | 0 |
 | All LLM agents | Schema validity | Outputs that pass JSON schema validation on the first try | ≥ 95% |
 | Pipeline | Cost and time per run | Recorded tokens and duration | < $0.10 and < 3 min per target |
 
-**Portfolio metrics.** Visitors who open the demo from the case study page, and average time on the demo (via a privacy-friendly free analytics tool, if added).
+**Engagement metrics.** Visitors who open the demo from the project page, and average time on the demo (via a privacy-friendly free analytics tool, if added).
 
-**Process.** Every prompt or skill change is followed by a full eval run; results are kept in `evals/results.md` with the date, so the case study can show quality improving across versions.
+**Process.** Every prompt or skill change is followed by a full eval run; results are kept in `evals/results.md` with the date, so quality can be tracked across versions.
 
 ## Guardrails, scope control and responsible use
 
@@ -99,7 +99,7 @@ The demo only scans targets that permit it, never lets the LLM invent facts, and
 **Scope control**
 
 - An allowlist file (`config/targets.yaml`) lists authorized targets; the orchestrator refuses anything else before any request is made.
-- Allowed targets: Miki's own domain, scanme.nmap.org (Nmap's public test host) and Acunetix's intentionally vulnerable vulnweb.com sites.
+- Allowed targets: the operator's own domain, scanme.nmap.org (Nmap's public test host) and Acunetix's intentionally vulnerable vulnweb.com sites.
 - Recon is passive (certificate transparency only). Enrichment makes one HTTPS request per discovered host, with a clear User-Agent such as `AttackSurfaceAnalyst-demo (+link to project page)`.
 - Hosts from certificate logs that resolve outside the target's domain are recorded but not contacted.
 
@@ -225,7 +225,7 @@ Python runs the agents, a static site replays the results, and GitHub hosts both
 | Agents and orchestrator | Python 3.11+, `requests`, `dnspython`, `pydantic` for schemas | Simple to read and write; schemas enforce the data contract |
 | LLM | Claude API behind a small `llm.py` wrapper | One place to swap models or providers; records token usage |
 | Data sources | crt.sh, DNS, target HTTPS pages, NVD CVE API, CISA KEV JSON feed | Free and public; NVD works without a key at lower rate limits |
-| Web UI | Static HTML, CSS and vanilla JavaScript | No build step; easy for Miki to edit |
+| Web UI | Static HTML, CSS and vanilla JavaScript | No build step; easy to edit |
 | Hosting | GitHub Pages from the `site/` folder | Free, always on, no server |
 | Scheduling (P1) | GitHub Actions weekly workflow | Runs without the laptop; key stored as a repo secret |
 | Live mode (P2) | FastAPI with server-sent events | Shows backend streaming skills locally |
@@ -241,7 +241,7 @@ attack-surface-analyst/
 ├── evals/               # golden set, eval runner, results.md
 ├── runs/                # recorded run files + index.json
 ├── site/                # replay UI (index.html, app.js, styles.css)
-├── docs/                # PRD, architecture, case study assets
+├── docs/                # PRD, architecture, project page assets
 ├── run.py               # CLI: python run.py scanme.nmap.org
 └── .github/workflows/   # scheduled scan (P1)
 ```
@@ -264,7 +264,7 @@ The biggest risks are flaky free data sources and thin findings on test targets;
 **Open questions**
 
 - [ ] Which LLM: Claude API pay-as-you-go (expected a few dollars in total) or a free-tier alternative?
-- [ ] Is Miki's own domain enough of a real-world target, or add a second domain he controls?
+- [ ] Is the operator's own domain enough of a real-world target, or should a second controlled domain be added?
 - [ ] Include the synthetic training-scenario run on the public site?
 
 **Roadmap**
@@ -274,4 +274,4 @@ The biggest risks are flaky free data sources and thin findings on test targets;
 3. LLM layer: Enrichment classification, Prioritization, Report
 4. Orchestrator and run recorder
 5. Replay UI
-6. Evals, case study page, GitHub Pages deploy; then P1 items (scheduled CI, metrics panel)
+6. Evals, project page, GitHub Pages deploy; then P1 items (scheduled CI, metrics panel)
