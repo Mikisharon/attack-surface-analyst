@@ -1,6 +1,50 @@
 {
   "runs": [
     {
+      "run_id": "scanme-nmap-org-2026-11-02",
+      "target": "scanme.nmap.org",
+      "date": "2026-11-02",
+      "file": "scanme-nmap-org-2026-11-02.json",
+      "label": null,
+      "synthetic": false,
+      "status": "ok",
+      "summary": {
+        "hosts": 1,
+        "live_hosts": 1,
+        "findings": 13,
+        "p1": 2,
+        "p2": 0,
+        "duration_s": 66.0,
+        "cost_usd": 0.0,
+        "llm_models": [
+          "claude-code/sonnet"
+        ],
+        "unknown_citations": 0
+      }
+    },
+    {
+      "run_id": "demo-corp-example-2026-11-02",
+      "target": "demo-corp.example",
+      "date": "2026-11-02",
+      "file": "demo-corp-example-2026-11-02.json",
+      "label": "Training scenario (synthetic data)",
+      "synthetic": true,
+      "status": "ok",
+      "summary": {
+        "hosts": 10,
+        "live_hosts": 9,
+        "findings": 19,
+        "p1": 5,
+        "p2": 2,
+        "duration_s": 139.0,
+        "cost_usd": 0.0,
+        "llm_models": [
+          "claude-code/sonnet"
+        ],
+        "unknown_citations": 0
+      }
+    },
+    {
       "run_id": "demo-corp-example-2026-11-01",
       "target": "demo-corp.example",
       "date": "2026-11-01",
