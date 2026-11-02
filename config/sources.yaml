@@ -1,0 +1,14 @@
+# Public data sources used by the agents. Hosts listed here are the only
+# non-target hosts the pipeline is allowed to contact.
+
+crtsh:
+  url: https://crt.sh/
+nvd:
+  url: https://services.nvd.nist.gov/rest/json/cves/2.0
+  cve_page: https://nvd.nist.gov/vuln/detail/
+kev:
+  # Feed URL from https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+  url: https://www.cisa.gov/sites/default/files/feeds/known_exploited_vulnerabilities.json
+  catalog_page: https://www.cisa.gov/known-exploited-vulnerabilities-catalog
+
+user_agent: AttackSurfaceAnalyst-demo (+https://github.com/Mikisharon/attack-surface-analyst)

@@ -1,0 +1,7 @@
+requests>=2.31
+dnspython>=2.6
+pydantic>=2.6
+PyYAML>=6.0
+anthropic>=2.3
+python-dotenv>=1.0
+pytest>=8.0
