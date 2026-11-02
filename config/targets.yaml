@@ -15,10 +15,10 @@ targets:
     mode: live
     description: Acunetix's intentionally vulnerable test sites (testphp, testasp, ...).
 
-  # Miki's own domain. Uncomment and set it once decided (PRD open question).
+  # The operator's own domain. Uncomment and set it once decided (PRD open question).
   # - domain: your-domain.com
   #   mode: live
-  #   description: Miki's own domain.
+  #   description: The operator's own domain.
 
   - domain: demo-corp.example
     mode: synthetic
