@@ -48,15 +48,33 @@ Run ok: 10 hosts, 19 findings, P1=4, P2=3, est. LLM cost $0.0000
 
 ### Use Claude for the LLM steps
 
-Without an API key the three LLM steps use a small deterministic heuristic with the same inputs, output schema and validation, and the run is labelled "offline LLM stand-in" in the UI. To use Claude:
+Without Claude, the three LLM steps use a small deterministic heuristic with the same inputs, output schema and validation, and the run is labelled "offline LLM stand-in" in the UI. There are two ways to use Claude.
+
+#### Option A: your Claude Pro or Max plan, no API billing (`--llm claude-code`)
+
+Claude Code is included in Pro and Max, and its non-interactive mode (`claude -p`) can answer with JSON in a given schema. This mode sends each LLM step through it, so usage counts toward your plan's normal limits (shared with claude.ai) instead of per-token API billing.
+
+1. Install Claude Code (see [code.claude.com](https://code.claude.com)) and run `claude` once to log in with your Claude account.
+2. Check the login: `claude auth status` should show `"authMethod": "claude.ai"`.
+3. Make sure `ANTHROPIC_API_KEY` is **not** set, in `.env` or your terminal.
+4. Run:
+
+```bash
+python run.py --demo --llm claude-code
+python run.py scanme.nmap.org --llm claude-code
+```
+
+Safeguards: the run stops if Claude Code is logged in with anything other than a subscription; API-key variables are removed from Claude Code's environment; Claude gets no tools (no file, shell or web access) and runs in an empty temporary folder, so it only reasons over the evidence it is given. The default model is Sonnet; set `ASA_CLAUDE_CODE_MODEL=opus` or `haiku` in `.env` to change it. A full run is about 20 short calls. If you hit your plan's usage limit, the run stops with a clear message; wait for the limit to reset and run again.
+
+#### Option B: the Claude API (`--llm claude`), billed per token
 
 ```bash
 cp .env.example .env
 # edit .env and set ANTHROPIC_API_KEY=sk-ant-...
-python run.py --demo
+python run.py --demo --llm claude
 ```
 
-The default model is `claude-opus-5-5`. Set `ASA_MODEL=claude-haiku-5-5` in `.env` for much cheaper runs (closer to the PRD's < $0.10 per target). Use `--llm offline` to force the heuristic, or `--llm claude` to require Claude.
+The default model is `claude-opus-5-5`. Set `ASA_MODEL=claude-haiku-5-5` in `.env` for much cheaper runs (closer to the PRD's < $0.10 per target). Use `--llm offline` to force the heuristic.
 
 ### Scan a real, authorized target
 

@@ -4,8 +4,10 @@ Why a wrapper: it keeps the model choice, retries, JSON validation and token
 accounting in one file, so agents only say "here is the evidence, give me JSON
 in this shape".
 
-Two implementations share the same retry/validation logic:
-- `ClaudeLLM` calls the Claude API (needs ANTHROPIC_API_KEY).
+Three implementations share the same retry/validation logic:
+- `ClaudeLLM` calls the Claude API (needs ANTHROPIC_API_KEY, billed per token).
+- `ClaudeCodeLLM` calls Claude through the Claude Code CLI on a Claude Pro/Max
+  subscription, so there is no API billing (see the class for the guards).
 - `OfflineLLM` answers with a small deterministic heuristic supplied by each
   agent. It exists so the demo runs with no key and no cost. Runs made with it
   are labelled `offline-heuristic` in the run file and the UI, so nobody
@@ -16,6 +18,9 @@ from __future__ import annotations
 import json
 import os
 import re
+import shutil
+import subprocess
+import tempfile
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
@@ -173,10 +178,157 @@ class ClaudeLLM(BaseLLM):
         return text, usage.input_tokens, usage.output_tokens
 
 
+class ClaudeCodeError(RuntimeError):
+    """Claude Code could not be used (not installed, not logged in, usage limit...)."""
+
+
+# Claude Code login methods that bill a Claude subscription, as reported by
+# `claude auth status`: an interactive claude.ai login, or a token from
+# `claude setup-token`. Anything else (an API key, a Console login) is API billing.
+SUBSCRIPTION_AUTH = {"claude.ai", "oauth_token"}
+
+# Environment variables that would make Claude Code bill the API instead of the
+# subscription. They are removed from the child process, so even a key left in
+# .env or the shell cannot cause API charges.
+API_BILLING_VARS = ("ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN")
+
+
+def _run_process(cmd: list[str], *, input_text: str | None, cwd: str, env: dict,
+                 timeout: int) -> subprocess.CompletedProcess:
+    return subprocess.run(cmd, input=input_text, cwd=cwd, env=env, capture_output=True,
+                          text=True, encoding="utf-8", timeout=timeout)
+
+
+class ClaudeCodeLLM(BaseLLM):
+    """Runs the LLM steps through the Claude Code CLI on your Claude Pro/Max plan.
+
+    Why: the Claude API is billed per token, while Claude Code is included in a
+    Pro subscription. `claude -p` is Claude Code's documented non-interactive
+    mode, and `--json-schema` makes it return JSON in our schema. Usage counts
+    toward the plan's normal limits (shared with claude.ai), not API billing.
+
+    Guards that keep it on the subscription:
+    - `claude auth status` must report a subscription login, else we stop.
+    - API-key variables are stripped from the child process environment.
+    - `--bare` is never used: bare mode ignores the subscription login.
+
+    Guards that keep it a pure reasoning step, like the API provider:
+    - `--tools ""` and `--disallowedTools mcp__*`: no file, shell or web access.
+    - It runs in an empty temporary folder, so no project CLAUDE.md, hooks or
+      settings from this repo can steer the answer.
+    - `--system-prompt-file` replaces Claude Code's coding-assistant prompt with
+      the agent's SKILL.md, exactly as the API provider does.
+    """
+
+    def __init__(self, model: str | None = None, binary: str | None = None,
+                 runner: Callable[..., subprocess.CompletedProcess] = _run_process,
+                 timeout: int = 300, check_auth: bool = True):
+        # A model alias Claude Code understands (sonnet, opus, haiku) or a full name.
+        # Sonnet is the default: strong reasoning, gentler on the plan's usage limits.
+        self.cli_model = model or os.environ.get("ASA_CLAUDE_CODE_MODEL") or "sonnet"
+        self.model = f"claude-code/{self.cli_model}"
+        self.binary = binary or os.environ.get("ASA_CLAUDE_BIN") or shutil.which("claude")
+        if not self.binary:
+            raise ClaudeCodeError(
+                "Claude Code is not installed or not on PATH. Install it from "
+                "https://code.claude.com, run `claude` once to log in with your Claude account, "
+                "then try again.")
+        self.runner = runner
+        self.timeout = timeout
+        self.env = {k: v for k, v in os.environ.items() if k not in API_BILLING_VARS}
+        self._workdir = tempfile.mkdtemp(prefix="asa-claude-code-")
+        if check_auth:
+            self._check_subscription_login()
+
+    def _check_subscription_login(self) -> None:
+        try:
+            proc = self.runner([self.binary, "auth", "status"], input_text=None, cwd=self._workdir,
+                               env=self.env, timeout=60)
+            method = json.loads(proc.stdout).get("authMethod")
+        except (OSError, subprocess.SubprocessError, ValueError, AttributeError) as exc:
+            raise ClaudeCodeError(
+                "Could not confirm Claude Code's login with `claude auth status` "
+                f"({exc!r}). Update Claude Code with `claude update` and try again.") from exc
+        if method not in SUBSCRIPTION_AUTH:
+            raise ClaudeCodeError(
+                f"Claude Code is logged in with '{method}', which is not a Claude subscription "
+                "login, so it could bill the API. Run `claude auth logout`, then `claude auth login` "
+                "and choose your Claude account (Pro/Max).")
+
+    def _complete(self, system, user, payload, fallback, effort):
+        schema = _schema_from_prompt(user)
+        with tempfile.NamedTemporaryFile("w", suffix=".md", dir=self._workdir, delete=False,
+                                         encoding="utf-8") as f:
+            f.write(system)  # a file, because SKILL.md text is too long for a Windows command line
+            system_file = f.name
+        cmd = [self.binary, "-p",
+               "--output-format", "json",
+               "--model", self.cli_model,
+               "--system-prompt-file", system_file,
+               "--tools", "",
+               "--disallowedTools", "mcp__*",
+               "--strict-mcp-config",
+               "--no-session-persistence"]
+        try:
+            proc = self._call(cmd + ["--json-schema", schema] if schema else cmd, user)
+            if schema and _no_json(proc):
+                # This Claude Code version rejected the schema flag or the schema.
+                # The prompt already asks for JSON only and ask_json validates it,
+                # so plain text output still works.
+                proc = self._call(cmd, user)
+        except subprocess.TimeoutExpired:
+            return "", 0, 0  # counts as an invalid answer: retried once, then the step is degraded
+        finally:
+            Path(system_file).unlink(missing_ok=True)
+
+        if _no_json(proc):
+            raise ClaudeCodeError(f"Claude Code returned no JSON (exit {proc.returncode}): "
+                                  f"{(proc.stderr or proc.stdout).strip()[:300]}")
+        result = json.loads(proc.stdout)
+        if result.get("is_error") or proc.returncode != 0:
+            # Not logged in, usage limit reached, etc. Stop the run with a clear
+            # message rather than record a pile of empty answers.
+            raise ClaudeCodeError(f"Claude Code reported an error: {str(result.get('result'))[:300]}")
+
+        usage = result.get("usage") or {}
+        tin = (usage.get("input_tokens", 0) + usage.get("cache_read_input_tokens", 0)
+               + usage.get("cache_creation_input_tokens", 0))
+        tout = usage.get("output_tokens", 0)
+        if result.get("structured_output") is not None:
+            return json.dumps(result["structured_output"]), tin, tout
+        return str(result.get("result") or ""), tin, tout  # parsed and validated by ask_json
+
+    def _call(self, cmd: list[str], user: str) -> subprocess.CompletedProcess:
+        # The prompt (with the evidence) goes on stdin: it can be long.
+        return self.runner(cmd, input_text=user, cwd=self._workdir, env=self.env, timeout=self.timeout)
+
+
+def _no_json(proc: subprocess.CompletedProcess) -> bool:
+    try:
+        return not isinstance(json.loads(proc.stdout), dict)
+    except (TypeError, ValueError):
+        return True
+
+
+def _schema_from_prompt(user: str) -> str | None:
+    """ask_json ends the prompt with the JSON schema; reuse it for --json-schema."""
+    marker = "matching this JSON schema, no other text:\n"
+    if marker not in user:
+        return None
+    candidate = user.split(marker, 1)[1].split("\n\nYour previous reply was rejected", 1)[0].strip()
+    try:
+        json.loads(candidate)
+    except ValueError:
+        return None
+    return candidate
+
+
 def make_llm(mode: str = "auto") -> BaseLLM:
-    """mode: 'claude', 'offline', or 'auto' (Claude if a key is configured)."""
+    """mode: 'claude', 'claude-code', 'offline', or 'auto' (Claude API if a key is configured)."""
     if mode == "offline":
         return OfflineLLM()
+    if mode == "claude-code":
+        return ClaudeCodeLLM()
     if mode == "claude" or (mode == "auto" and os.environ.get("ANTHROPIC_API_KEY")):
         return ClaudeLLM()
     return OfflineLLM()
