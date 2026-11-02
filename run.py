@@ -5,6 +5,7 @@ Runs the five agents in sequence and records every step in runs/<target>-<date>.
     python run.py --demo                 # offline training scenario, no network, no API key
     python run.py scanme.nmap.org        # live scan of an allowlisted target
     python run.py vulnweb.com --llm offline   # live data, heuristic stand-in instead of Claude
+    python run.py --demo --llm claude-code    # Claude via Claude Code on your Pro plan, no API billing
 """
 from __future__ import annotations
 
@@ -16,7 +17,7 @@ from dotenv import load_dotenv
 
 from agents import enrichment, prioritization, recon, report, threat_intel
 from core.envelope import Envelope, StepError, make_envelope, utc_now
-from core.llm import OFFLINE_MODEL, BaseLLM, make_llm
+from core.llm import OFFLINE_MODEL, BaseLLM, ClaudeCodeError, make_llm
 from core.net import BaseNet, FixtureNet, LiveNet
 from core.recorder import RUNS_DIR, Recorder
 from core.scope import ScopeError, check_target
@@ -74,8 +75,10 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("target", nargs="?", help="an authorized domain from config/targets.yaml")
     parser.add_argument("--demo", action="store_true",
                         help="run the offline training scenario (no network, no API key needed)")
-    parser.add_argument("--llm", choices=["auto", "claude", "offline"], default="auto",
-                        help="auto = Claude if ANTHROPIC_API_KEY is set, else the offline heuristic")
+    parser.add_argument("--llm", choices=["auto", "claude", "claude-code", "offline"], default="auto",
+                        help="auto = Claude API if ANTHROPIC_API_KEY is set, else the offline heuristic; "
+                             "claude-code = Claude via the Claude Code CLI on your Pro/Max plan "
+                             "(no API billing)")
     parser.add_argument("--runs-dir", type=Path, default=RUNS_DIR)
     args = parser.parse_args(argv)
 
@@ -88,9 +91,16 @@ def main(argv: list[str] | None = None) -> int:
         say(f"Refused: {exc}")
         return 2
 
-    llm = make_llm(args.llm)
+    try:
+        llm = make_llm(args.llm)
+    except ClaudeCodeError as exc:
+        say(f"Cannot use Claude Code: {exc}")
+        return 2
     if llm.model == OFFLINE_MODEL:
         say("Note: no Claude API key in use; LLM steps run with the offline heuristic stand-in.")
+    elif llm.model.startswith("claude-code/"):
+        say("Note: LLM steps run through Claude Code on your Claude subscription "
+            "(counts toward your plan's usage limits; no API billing).")
 
     if target.mode == "synthetic":
         if not args.demo:

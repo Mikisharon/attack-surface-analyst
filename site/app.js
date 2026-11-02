@@ -119,6 +119,12 @@ function renderBanners() {
     box.append(el("div", { class: "banner" }, el("strong", {}, "Offline LLM stand-in. "),
       "This run was recorded without a Claude API key: the LLM steps used a deterministic keyword heuristic with the same input, output schema and validation. Rerun with a key for model output."));
   }
+  const viaClaudeCode = models.filter((m) => m.startsWith("claude-code/"));
+  if (viaClaudeCode.length) {
+    const names = viaClaudeCode.map((m) => m.slice("claude-code/".length)).join(", ");
+    box.append(el("div", { class: "banner" }, el("strong", {}, `Reasoning by Claude (${names}). `),
+      "The LLM steps ran through Claude Code on a Claude subscription, so this run has no per-token API cost; token counts are shown for comparison."));
+  }
   if (run.status !== "ok") {
     box.append(el("div", { class: "banner" }, el("strong", {}, `Run status: ${run.status}. `),
       "Some steps reported problems; see the step details and Data limitations."));
